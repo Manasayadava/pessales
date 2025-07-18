@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can read and write their own user document
+    // Admins can read all user documents (for displaying user names)
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Allow admins to read user documents for displaying names
+      allow read: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Enquiries collection rules
+    match /enquiries/{enquiryId} {
+      // Users can read and write enquiries they created
+      allow read, write: if request.auth != null && 
+        (resource.data.createdBy == request.auth.uid || 
+         request.auth.uid == resource.data.createdBy);
+      
+      // Allow creation of new enquiries by authenticated users
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.createdBy;
+      
+      // Admin users can access all enquiries
+      allow read, write: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+}
